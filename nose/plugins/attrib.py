@@ -107,6 +107,7 @@ import sys
 from inspect import isfunction
 from nose.plugins.base import Plugin
 from nose.util import tolist
+import collections
 
 log = logging.getLogger('nose.plugins.attrib')
 compat_24 = sys.version_info >= (2, 4)
@@ -118,7 +119,7 @@ def attr(*args, **kwargs):
     def wrap_ob(ob):
         for name in args:
             setattr(ob, name, True)
-        for name, value in kwargs.iteritems():
+        for name, value in kwargs.items():
             setattr(ob, name, value)
         return ob
     return wrap_ob
@@ -238,7 +239,7 @@ class AttributeSelector(Plugin):
             match = True
             for key, value in group:
                 attr = get_method_attr(method, cls, key)
-                if callable(value):
+                if isinstance(value, collections.Callable):
                     if not value(key, method, cls):
                         match = False
                         break
@@ -274,13 +275,20 @@ class AttributeSelector(Plugin):
     def wantFunction(self, function):
         """Accept the function if its attributes match.
         """
-        return self.validateAttrib(function)
+        try:
+            return self.validateAttrib(function)
+        except TypeError:
+            return False
 
     def wantMethod(self, method):
         """Accept the method if its attributes match.
         """
         try:
-            cls = method.im_class
+            cls = method.__self__.__class__
         except AttributeError:
             return False
-        return self.validateAttrib(method, cls)
+        try:
+            return self.validateAttrib(method, cls)
+        except TypeError:
+            return False
+
