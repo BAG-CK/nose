@@ -98,6 +98,12 @@ Examples using the ``-A`` and ``--eval-attr`` options:
 
 * ``nosetests -A "(priority > 5) and not slow"``
   Evaluates a complex Python expression and runs the test if True
+  
+* ``nosetests -A "(priority > 5)" -A "not slow"``
+  This equals expression: -A "(priority > 5) and not slow"
+
+* ``nosetests -A "(priority > 5)" -a priority=0``
+  This equals expression: -A "(priority > 5) or (priority == 0)"
 
 """
 import inspect
@@ -165,7 +171,8 @@ class AttributeSelector(Plugin):
                           default=env.get('NOSE_ATTR'),
                           metavar="ATTR",
                           help="Run only tests that have attributes "
-                          "specified by ATTR [NOSE_ATTR]")
+                          "specified by ATTR [NOSE_ATTR]. Multiple entries "
+                          "will be disjunct implicitly!")
         # disable in < 2.4: eval can't take needed args
         if compat_24:
             parser.add_option("-A", "--eval-attr",
@@ -173,7 +180,8 @@ class AttributeSelector(Plugin):
                               default=env.get('NOSE_EVAL_ATTR'),
                               help="Run only tests for whose attributes "
                               "the Python expression EXPR evaluates "
-                              "to True [NOSE_EVAL_ATTR]")
+                              "to True [NOSE_EVAL_ATTR]. Multiple entries "
+                              "will be conjugated implicitly!")
 
     def configure(self, options, config):
         """Configure the plugin and system, based on selected options.
@@ -189,12 +197,13 @@ class AttributeSelector(Plugin):
         # handle python eval-expression parameter
         if compat_24 and options.eval_attr:
             eval_attr = tolist(options.eval_attr)
-            for attr in eval_attr:
-                # "<python expression>"
-                # -> eval(expr) in attribute context must be True
-                def eval_in_context(expr, obj, cls):
-                    return eval(expr, None, ContextHelper(obj, cls))
-                self.attribs.append([(attr, eval_in_context)])
+            # multiple attribute rule expressions are conjugated
+            attr = " and ".join(map(lambda s: "(%s)" % (s), eval_attr))
+            # "<python expression>"
+            # -> eval(expr) in attribute context must be True
+            def eval_in_context(expr, obj, cls):
+                return eval(expr, None, ContextHelper(obj, cls))
+            self.attribs.append([(attr, eval_in_context)])
 
         # attribute requirements are a comma separated list of
         # 'key=value' pairs
