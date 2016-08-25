@@ -127,7 +127,7 @@ class ResultProxy(object):
         # test.passed is set in result, to account for error classes
         formatted = plugins.formatError(self.test, err)
         if formatted is not None:
-            err = formatted
+            err = self._prepareErr(formatted)
         plugins.addError(self.test, err)
         self.result.addError(self.test, err)
         if not self.result.wasSuccessful() and self.config.stopOnError:
